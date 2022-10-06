@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+
+<input type='text' id='ttl' name='ttl' /><br>
+<input id='tokenField' type='hidden' name='headers[Authorization]' value='Bearer token'/><br/>
+<input id="submitButton" type="button" value='Submit'/>
+
+<script type="text/javascript">
+
+var v = document.getElementById('tokenField').value;
+ alert(v);
+
+$('#submitButton').on('click',function(){
+    $.ajax({
+          url: '/apiproxy/rest/coins/cachettl',
+          type: 'POST',
+          data: { ttl: $('#ttl').val()},
+          contentType: 'application/json',
+          headers: {"Authorization": "Bearer " + $('#tokenField').val()},
+          async: false
+            })
+     });
+</script>
+</body>
+</html>
