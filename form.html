@@ -3,7 +3,8 @@
 <head>
 <meta charset="ISO-8859-1">
 <title>Insert title here</title>
- <link rel="stylesheet" href="listbox.css">
+<link rel="stylesheet" href="listbox.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
  <script src="list.js" type="text/javascript"></script>
  <style>
   .column1 {
@@ -17,88 +18,142 @@
   display: table;
   clear: both;
 }
+
+#myInput {
+  background-image: url('/css/searchicon.png'); /* Add a search icon to input */
+  background-position: 10px 12px; /* Position the search icon */
+  background-repeat: no-repeat; /* Do not repeat the icon image */
+  width: 80%; /* Full-width */
+  font-size: 16px; /* Increase font-size */
+  padding: 12px 20px 12px 40px; /* Add some padding */
+  border: 1px solid #ddd; /* Add a grey border */
+  margin-bottom: 12px; /* Add some space below the input */
+}
+
+#ss_elem_list {
+  /* Remove default list styling */
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+#ss_elem_list li a {
+  border: 1px solid #ddd; /* Add a border to all links */
+  margin-top: -1px; /* Prevent double borders */
+  background-color: #f6f6f6; /* Grey background color */
+  padding: 12px; /* Add some padding */
+  text-decoration: none; /* Remove default text underline */
+  font-size: 18px; /* Increase the font-size */
+  color: black; /* Add a black text color */
+  display: block; /* Make it into a block element to fill the whole list */
+}
+
+#ss_elem_list li a:hover:not(.header) {
+  background-color: #eee; /* Add a hover effect to all links, except for headers */
+}
+
+#ss_elem_list li a:active{
+  color: red;
+}
+
 </style>
 <script>
 
-function UserAction(url_param) {
+  const URL_AllCoinNames = "/apiproxy/rest/coins",
+        URL_SingleCoinDetails = "/apiproxy/rest/coins/:";
+
+  // populate all coin names on load
+  $( window ).load(function() {
+	  proxyService(URL_AllCoinNames, "GET", "text/plain", displayAllCoinNames);
+  });
+
+  $(document).on('mousedown', function(event) {
 	
-    var xhttp = new XMLHttpRequest();
+	  let node_id = event.target.id;
+
+	  if( node_id.indexOf("#") > -1 ){
+		 
+		  proxyService(URL_SingleCoinDetails + 
+	    		       node_id.slice(node_id.indexOf("#")+1),
+				       "GET", "application/json", displayCoinDetails);
+	  }
+  });
+ 
 
 
-    xhttp.onreadystatechange = function() {
-         if (this.readyState == 4 && this.status == 200) {
-        	 
-        	 let data = this.responseText.split("\n\t");
-        	 let count = 0
-        	 let list = document.getElementById("ss_elem_list");
-        	  
-        	 data.forEach((item)=>{
-        	   let li = document.createElement("li");
-        	   li.id = "ss_elem_" + count
-        	   li.role="option"
-        	   li.onclick=function(){ 
-        		   
-        		   var xhttp = new XMLHttpRequest();
-
-        		    xhttp.onreadystatechange = function() {
-        		         if (this.readyState == 4 && this.status == 200) {
-        		        	 
-        		        	 var obj = JSON.parse(this.responseText);
-        		        	 
-        		        	 let div = document.getElementById("coin_detail");
-        		        	 
-        		        	 div.innerText = "\n" + obj.symbol +" $"+ obj.toUSD + 
-        		        	                 "\n Id: " + obj.Id  +
-        		        	                 "\n" + obj.coinName +
-        		        	                 "\n" + obj.algorithm;
-        		        }
-        		    };
-        		    xhttp.open("GET", "/apiproxy/rest/coins/:" + item.split("=")[1], true);
-        		    xhttp.setRequestHeader("Content-type", "application/json");
-        		    xhttp.send("Your JSON Data Here");
-        	    };
-        	   
-        	   li.innerText = item.split("=")[0];
-        	   list.appendChild(li);
-        	   count = count+1;
-        	 })
-        	
-         }
-    };
-    xhttp.open("GET", url_param, true);
-    xhttp.setRequestHeader("Content-type", "text/plain");
-    xhttp.send("Your JSON Data Here");
-}
-
-function getCoinForSymbol(url_param){
+function proxyService(url_param, method, contentType, callback){
+	
+	//alert("proxy service url " + "http://localhost:8080"+url_param);
 	
 	var xhttp = new XMLHttpRequest();
+	xhttp.open(method, "http://localhost:8080"+url_param, true);
+    //alert("proxy service url " + "http://localhost:8080"+url_param);
+    xhttp.setRequestHeader("Content-type", contentType);
+    xhttp.send("request data from proxyapi");
+	xhttp.onreadystatechange = function() {
+         if(this.readyState == 4 && this.status == 200){
+        	let data = xhttp.responseText.trim();
+          //  alert("in callback data size" +data.length);
+            callback(data);	
+         }
+	}     
+ }
 
-    xhttp.onreadystatechange = function() {
-         if (this.readyState == 4 && this.status == 200) {
-        	 
-        	 var obj = JSON.parse(this.responseText);
-        	 
-        	 let div = document.getElementById("coin_detail");
-        	 
-        	 div.innerText = "\n" + obj.symbol +" $"+ obj.toUSD + 
-        	                 "\n Id: " + obj.Id  +
-        	                 "\n" + obj.coinName +
-        	                 "\n" + obj.algorithm;
-        }
-    };
-    xhttp.open("GET", url_param, true);
-    xhttp.setRequestHeader("Content-type", "application/json");
-    xhttp.send("Your JSON Data Here");
+function displayAllCoinNames(data) {
 	
+	data = data.split("\n\t");
+	//alert("displayAllCoinNames data size: " + data.length)
+	
+    let list, li, a, items;
+    list = document.getElementById("ss_elem_list");
+    data.forEach((item)=>{
+    items = item.split("=");	
+    li = document.createElement("li");
+    li.role="option";
+    list.appendChild(li);
+    a = document.createElement("a");
+    a.id = "ss_elem_#" + items[1]
+    a.innerText = items[0] + " (" + items[1] + ")";
+	a.href="#";
+	li.appendChild(a);
+	list.appendChild(li);
+	})
+}	
+
+function displayCoinDetails(data){
+    
+	//alert("displayCoinDetails data size:" + data.length)
+	
+	if(data.length > 2) { /*if data object is emrty '{}' don't parse it*/
+       let obj = JSON.parse(data);
+	   
+	   let text = "\n\t".concat(obj.symbol, 
+			                    " $"+ obj.toUSD, 
+			                    "\n\t Id: " + obj.Id, 
+			                     "\n\t" + obj.coinName, 
+			                      "\n\t" + obj.algorithm);
+	  
+	   document.getElementById("coin_detail").innerText = text;
+	
+	}
 }
 
-UserAction("/apiproxy/rest/coins");
-
- // getCoinForSymbol("/apiproxy/rest/coins/:BTC");
- //apiproxy/rest/coins?algorithm=SHA-256
 
 
+// getCoinForSymbol("/apiproxy/rest/coins/:BTC");
+//apiproxy/rest/coins?algorithm=SHA-256 test
+function SearchFunction(){
+    var input, filter, ul, li, a, i, txtValue;
+    input = document.getElementById("myInput");
+    filter = input.value.toUpperCase();
+    ul = document.getElementById("ss_elem_list");
+    li = ul.getElementsByTagName("li");
+    for (i = 0; i < li.length; i++) {
+    	a = li[i].getElementsByTagName("a")[0];
+        txtValue = a.textContent || a.innerText;
+        li[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none" ;
+    }
+}
 </script>
 </head>
 <body>
@@ -106,21 +161,16 @@ UserAction("/apiproxy/rest/coins");
 
 
 <p>MASTER/DETAIL VIEW</p>
-<div class="listbox-area">
+<!--<div class="listbox-area">  -->
    <div class="row">
     <div class="column1">
-    <span id="ss_elem" class="listbox-label">Search by: symbol/algorithm</span>
-    <input type="text" id="fname" name="fname">
-     <ul id="ss_elem_list" tabindex="0" role="listbox" aria-labelledby="ss_elem">
+     <input type="text" id="myInput" onkeyup="SearchFunction()" placeholder="Search for..symbol..algorithm" title="Type in a name">
+     <ul id="ss_elem_list" tabindex="0" role="lisbox" aria-labelledby="ss_elem">
      </ul>
    
    </div>
-   
-  </div>
-  
-   <div id="coin_detail">
+    <div id="coin_detail">Details
    </div>
-   
- </div>
-</body>
+  </div>
+ </body>
 </html>
