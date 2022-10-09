@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,31 +91,19 @@ public class CryptoCurrencyService {
         
            this.getCoinsForAlgorithm(param.getFirst("algorithm"))
                .forEach(entry -> names.add(entry.coinName)); 
-           
-          // buffer.append("\n\t"+entry.coinName)
-           
+   
         } else if(param.containsKey("symbol")){
         
         	this.getCoinsForSymbols(param.getFirst("symbol"))
                 .forEach(entry -> names.add(entry.coinName)); 
-           
-          // buffer.append("\n\t"+entry.coinName)
-        	
-        } else {
+       
+        } else {  //list all names
         	
         	names.addAll(getCoinNames());
-        
-         //   this.getCoinNames()
-           //     .forEach(entry -> buffer.append("\n\t"+entry));
-        	
-           // buffer.append(assembleHtmlform(this.getCoinNames()));
-     
         }
         
         names.forEach(entry -> buffer.append("\n\t"+entry));
-        
-       // buffer.append(assembleHtmlform(names));
-        
+   
         return buffer.toString();
     }
 
@@ -122,6 +112,7 @@ public class CryptoCurrencyService {
     @Path("/:{symbol}")
     public JSONObject getPropety(@PathParam("symbol") String symbol) {
     	
+    	System.out.println("...............................  "+symbol);
          Coin coin =  this.getSingleCoinForSymbol(symbol);
          JSONObject obj = new JSONObject();
          
@@ -204,58 +195,6 @@ public class CryptoCurrencyService {
     }
     
    
-    private String assembleHtmlform(List<String> entries){
-    	
-    	
-    	//"<div id='wrap'>"
-    	
-    	StringBuffer buf = new StringBuffer();
-    	
-    //	buf.append("<script src='list.js'></script>");
-    //	buf.append("\n <script type='text/javascript' src='/apiroxy/list.js'>");
-    	
-    	//var head = document.getElementByTagName('head')[0];
-    //	var s = document.createElement('style');
-    	//<link rel="stylesheet" href="listbox.css"> || document.getElementByTagName('head')[0]
-    	//buf.append("\n var head = document.head; ");
-    	buf.append("\n <script>");
-    	buf.append("\n var link = document.createElement('link'); ");
-    	buf.append("\n link.id = 'cssId'; ");
-    	buf.append("\n link.rel='stylesheet';  ");
-    	buf.append("\n link.type='text/css'; ");
-        buf.append("\n link.href='listbox.css'; ");
-    	buf.append("\n link.media='screen, print'; ");
-    //	buf.append("\n link.text = rel='stylesheet' href='listbox.css'");
-    	buf.append("\n document.getElementsByTagName('head')[0].appendChild(link); ");
-    	buf.append("\n </script>");
-    	
-    //	buf.append("\n head.appendChild(link); ");
-    	
-    	// + document.getElementByTagName('head')[0].innerHTML
-    	//buf.append(" alert('header content: ' + head.innerHTML)");
-    	
-    	
-    	
-    	buf.append("\n <p>MASTER/DETAIL VIEW</p>");
-    	buf.append("<div class='listbox-area'>");
-    	buf.append("<div class='row'>");
-    	buf.append("<div class='column1'>");
-    	buf.append("<span id='ss_elem' class='listbox-label'>Search by:symbol/algorithm</span>");
-    	buf.append("<input type='text' id='fname' name='fname'>");
-    	buf.append("<ul id='ss_elem_list' tabindex='0' role='listbox' aria-labelledby='ss_elem'>");
-    	
-    	entries.forEach(entry -> buf.append("<li id='ss_elem_Np' role='option'>"+entry+"</li>"));
-    	
-    	buf.append(" </ul>");
-    	buf.append("</div>");
-    	buf.append("</div>");
-    	buf.append("<div>DETAILS:</div>");   
-    	buf.append("</div>");
-    	
-    //	buf.append("</div>");  // wrap
-    	
-    	return buf.toString();
-    }
     
     
     // returns all coin names
@@ -289,20 +228,21 @@ public class CryptoCurrencyService {
 
     }
     
-    
    //returns single coin with all properties, including currency
    private Coin getSingleCoinForSymbol(String symbol){
- 	 
- 	  String[] str = new String[1];
+	   
+	   System.out.println("symbol " +  symbol);
+	   
+	  String[] str = new String[1];
  	  str[0]=symbol;
+ 	
+ 	  // lazy initialize toUsd field
+ //	 if(coinMap.containsKey(symbol) )
+ 	//		 if (coinMap.get(symbol).getToUsd() == 0)
  	  
- 	  try {
- 	     populateToUSDField(str);
- 	  } catch(Exception ex){
-      	System.out.println("getSingleCoinForSymbol exception ---> " + ex.getMessage());
-      }
- 	  
- 	  return coinMap.get(symbol);
+ 		populateToUSDField(str);
+ 	 
+ 	  return coinMap.get(symbol.toUpperCase()); 
     }
    
    
@@ -319,15 +259,15 @@ public class CryptoCurrencyService {
         // fill up properties
         for(String s : str) {
          
+        	//parse JSONObject
             buf = new StringBuffer("{");
             if (s.indexOf("\"Id\"") > -1){
          	   
                 buf.append(s.substring(s.indexOf("\"Id\""))).append("}}");
                 obj = new JSONObject(buf.toString());
                 
-                //coinMap.put(url, null)
-             
-                coinMap.put(obj.getString("Symbol"),
+                //populate map of coins from jason object responce
+                coinMap.put(obj.getString("Symbol").toUpperCase(),
              		       new Coin(
              				   obj.getInt("Id"),
              				   obj.getString("Symbol"),
@@ -337,55 +277,73 @@ public class CryptoCurrencyService {
             }
         };
         
-        System.out.println(" end of populateCoinMap()" + coinMap.size());
+        System.out.println(" end of populateCoinMap(), current size: " + coinMap.size());
        
     }
     
     
-    private void populateToUSDField(String[] symbols) throws Exception{
- 	   
+    private void populateToUSDField(String[] symbols) {
     	
- 	    StringBuffer buf = new StringBuffer("https://min-api.cryptocompare.com/data/pricemulti?fsyms=");
- 	    JSONObject obj;
-        String url;
+    	System.out.println("populateToUSDField, " +  symbols.length+ "<-----"); 
+ 	   
+    	StringBuffer urlBuff = new StringBuffer("https://min-api.cryptocompare.com/data/pricemulti?fsyms=");
+ 	   
         
-        for(int i=0; i < symbols.length; i++){
+        // populate toUSD fields in bulk and 
+        //assemble inquiry buffer up to 300 characters
+        
+        for(int i=0; i < symbols.length && urlBuff.length() < 300; i++){
      	   
-           if(i > 0)  buf.append(",");
-        	  
-     	   buf.append(symbols[i]);
+        	if(i > 0)  
+        	   urlBuff.append(",");
+           
+        	urlBuff.append(symbols[i]);
         } 
-     	   // populate toUSD fields in bulk
-          //  if(buf.length() > 300 || i==symbols.length-1){
-         	   buf.append("&tsyms= USD");
-         	   
-         	   url = buf.toString();
-         	   
-               // api call
-               obj = new JSONObject(callREST(url, "GET"));
-                
-               for(String symbol : symbols) {
+        
+        
+        /////////// call to server and assemble response json////////////
+        
+        try{
+        	
+        	JSONObject obj = new JSONObject("{" +
+        	callREST( urlBuff.append("&tsyms= USD").toString(), "GET") 
+        	                       + "}");
+        	System.out.println(obj.toString());
+        	Iterator<String> it = obj.keys();
+        	while(it.hasNext())
+        		  System.out.println("-------------------->" + it.next() );
+        	 
+        	//update coin storage map 
+            for(String symbol : symbols) 
+                	   
+            // System.out.println("-------------------->" + obj.keys().toString());
+                	   
+            if( obj.get(symbol) != null && coinMap.containsKey(symbol.toUpperCase())  ){
+                	
+                 coinMap.get(symbol.toUpperCase()).setToUsd(obj.getLong("USD"));
+                     	   
+                 //.getLong("USD")
+                 System.out.println("toUsd----->" + obj.getLong("USD"));
+                 
+            }   
+           
+       
+        	
+ 	  }catch(Exception ex){
+      	    System.out.println("getSingleCoinForSymbol exception ---> " + ex.getMessage());
+        }
+       
+        
+        
+       
+ 	   
+        //reset buffer        
+        urlBuff = new StringBuffer("https://min-api.cryptocompare.com/data/pricemulti?fsyms=");
             	   
-            	   System.out.println("-------------------->" + obj.keys().toString());
-            	   
-            	   if(obj.get(symbol) != null) {
-            		   
-            		   
-                 	  
-                    //if( obj.keys().toString().contains(symbol) ) {
-                 	   
-                 	   coinMap.get(symbol).setToUsd(obj.getJSONObject(symbol).getLong("USD"));
-                 	   //.getLong("USD")
-                 	   System.out.println("toUsd----->" + obj.getJSONObject(symbol).getLong("USD"));
-                 	   
-                    }   
-                           
-                //reset buffer        
-               // buf = new StringBuffer("https://min-api.cryptocompare.com/data/pricemulti?fsyms=");
-                
-           }
+         
+   }
       
-    }
+    
     
     //call to rest api
     private static String callREST(String url, String method){
